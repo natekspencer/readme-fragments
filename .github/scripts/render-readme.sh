@@ -20,7 +20,6 @@ HEADER="${HEADER:-homeassistant}"
 FOOTERS="${FOOTERS:-support,star-history}"
 CHECK="${CHECK:-false}"
 CUSTOM_BADGES="${CUSTOM_BADGES:-}"
-CUSTOM_BADGES_FILE="${CUSTOM_BADGES_FILE:-}"
 
 # -------------------------
 # Ensure header/footer markers exist
@@ -29,7 +28,6 @@ CUSTOM_BADGES_FILE="${CUSTOM_BADGES_FILE:-}"
 # Header: insert at top if missing
 if ! grep -q '<!-- BEGIN AUTO-GENERATED HEADER -->' "$README_FILE"; then
     tmp=$(mktemp)
-    # Add a newline if file is non-empty to separate header
     if [ -s "$README_FILE" ]; then
         echo -e "<!-- BEGIN AUTO-GENERATED HEADER -->\n<!-- END AUTO-GENERATED HEADER -->\n" > "$tmp"
         cat "$README_FILE" >> "$tmp"
@@ -52,7 +50,15 @@ FOOTER_TMP=$(mktemp)
 README_TMP=$(mktemp)
 
 # -------------------------
-# 1️⃣ Fetch header fragment
+# 1️⃣ Detect HACS default vs custom
+# -------------------------
+HACS_TYPE="custom"
+if curl -sSL https://raw.githubusercontent.com/hacs/default/master/integration | grep -q "\"$OWNER/$REPO\""; then
+    HACS_TYPE="default"
+fi
+
+# -------------------------
+# 2️⃣ Fetch header fragment
 # -------------------------
 HEADER_URL="https://raw.githubusercontent.com/natekspencer/readme-fragments/main/headers/$HEADER/v1.md"
 curl -sSL "$HEADER_URL" -o "$HEADER_TMP"
@@ -61,6 +67,7 @@ curl -sSL "$HEADER_URL" -o "$HEADER_TMP"
 sed -i \
   -e "s/{{OWNER}}/$OWNER/g" \
   -e "s/{{REPO}}/$REPO/g" \
+  -e "s/{{HACS_TYPE}}/$HACS_TYPE/g" \
   "$HEADER_TMP"
 
 # Add custom badges inline
@@ -69,14 +76,8 @@ if [ -n "$CUSTOM_BADGES" ]; then
   echo "$CUSTOM_BADGES" >> "$HEADER_TMP"
 fi
 
-# Add custom badges from file
-if [ -n "$CUSTOM_BADGES_FILE" ] && [ -f "$CUSTOM_BADGES_FILE" ]; then
-  echo >> "$HEADER_TMP"
-  cat "$CUSTOM_BADGES_FILE" >> "$HEADER_TMP"
-fi
-
 # -------------------------
-# 2️⃣ Inject header
+# 3️⃣ Inject header
 # -------------------------
 awk -v HEADER_FILE="$HEADER_TMP" '
 /<!-- BEGIN AUTO-GENERATED HEADER -->/ {
@@ -95,7 +96,7 @@ awk -v HEADER_FILE="$HEADER_TMP" '
 ' "$README_FILE" > "$README_TMP"
 
 # -------------------------
-# 3️⃣ Build footers
+# 4️⃣ Build footers
 # -------------------------
 : > "$FOOTER_TMP"
 IFS=',' read -ra ITEMS <<< "$FOOTERS"
@@ -112,7 +113,7 @@ sed -i \
   "$FOOTER_TMP"
 
 # -------------------------
-# 4️⃣ Inject footer
+# 5️⃣ Inject footer
 # -------------------------
 awk -v FOOTER_FILE="$FOOTER_TMP" '
 /<!-- BEGIN AUTO-GENERATED FOOTER -->/ {
@@ -131,7 +132,7 @@ awk -v FOOTER_FILE="$FOOTER_TMP" '
 ' "$README_TMP" > "$README_FILE"
 
 # -------------------------
-# 5️⃣ Optional CI check
+# 6️⃣ Optional CI check
 # -------------------------
 if [ "$CHECK" = "true" ]; then
   if git diff --quiet "$README_FILE"; then
@@ -147,6 +148,6 @@ if [ "$CHECK" = "true" ]; then
 fi
 
 # -------------------------
-# 6️⃣ Cleanup temp files
+# 7️⃣ Cleanup temp files
 # -------------------------
 rm -f "$HEADER_TMP" "$FOOTER_TMP" "$README_TMP"
