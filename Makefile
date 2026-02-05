@@ -5,14 +5,14 @@ README_RENDER=.github/scripts/render-readme.sh
 readme:
 	@echo "🔧 Rendering README..."
 	@OWNER_OVERRIDE=natekspencer \
-	HEADER=ha \
+	HEADER=homeassistant \
 	FOOTERS=support,star-history \
 	$(README_RENDER)
 
 readme-check:
 	@echo "🔍 Checking README..."
 	@OWNER_OVERRIDE=natekspencer \
-	HEADER=ha \
+	HEADER=homeassistant \
 	CHECK=true \
 	$(README_RENDER)
 

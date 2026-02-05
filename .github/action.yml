@@ -1,0 +1,28 @@
+name: "Render README"
+description: "Inject header/footer fragments into README"
+inputs:
+  header:
+    description: "Header type"
+    required: true
+    default: homeassistant
+  footers:
+    description: "Comma-separated footers"
+    required: false
+    default: support,star-history
+  check:
+    description: "Fail if README is out of date"
+    required: false
+    default: false
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Run render-readme
+      shell: bash
+      run: |
+        bash ./scripts/render-readme.sh \
+          HEADER="${{ inputs.header }}" \
+          FOOTERS="${{ inputs.footers }}" \
+          CHECK="${{ inputs.check }}"

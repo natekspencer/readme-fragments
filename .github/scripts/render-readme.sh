@@ -8,9 +8,6 @@ README_FILE="${README_FILE:-README.md}"
 OWNER="${OWNER_OVERRIDE:-natekspencer}"
 
 # Auto-detect REPO:
-# - Use override if set
-# - Otherwise use GitHub Actions env
-# - Otherwise use current folder name (local)
 if [ -n "$REPO_OVERRIDE" ]; then
     REPO="$REPO_OVERRIDE"
 elif [ -n "$GITHUB_REPOSITORY" ]; then
@@ -19,11 +16,22 @@ else
     REPO="$(basename $(pwd))"
 fi
 
-HEADER="${HEADER:-ha}"
+HEADER="${HEADER:-homeassistant}"
 FOOTERS="${FOOTERS:-support,star-history}"
 CHECK="${CHECK:-false}"
 CUSTOM_BADGES="${CUSTOM_BADGES:-}"
 CUSTOM_BADGES_FILE="${CUSTOM_BADGES_FILE:-}"
+
+# -------------------------
+# Ensure header/footer markers exist
+# -------------------------
+if ! grep -q '<!-- BEGIN AUTO-GENERATED HEADER -->' "$README_FILE"; then
+    echo -e "\n<!-- BEGIN AUTO-GENERATED HEADER -->\n<!-- END AUTO-GENERATED HEADER -->" >> "$README_FILE"
+fi
+
+if ! grep -q '<!-- BEGIN AUTO-GENERATED FOOTER -->' "$README_FILE"; then
+    echo -e "\n<!-- BEGIN AUTO-GENERATED FOOTER -->\n<!-- END AUTO-GENERATED FOOTER -->" >> "$README_FILE"
+fi
 
 # -------------------------
 # Temporary files
@@ -86,7 +94,7 @@ for f in "${ITEMS[@]}"; do
   echo >> "$FOOTER_TMP"
 done
 
-# Replace placeholders in footer
+# Replace placeholders in footers
 sed -i \
   -e "s/{{OWNER}}/$OWNER/g" \
   -e "s/{{REPO}}/$REPO/g" \
