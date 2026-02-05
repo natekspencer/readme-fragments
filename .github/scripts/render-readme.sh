@@ -86,6 +86,12 @@ for f in "${ITEMS[@]}"; do
   echo >> "$FOOTER_TMP"
 done
 
+# Replace placeholders in footer
+sed -i \
+  -e "s/{{OWNER}}/$OWNER/g" \
+  -e "s/{{REPO}}/$REPO/g" \
+  "$FOOTER_TMP"
+
 # -------------------------
 # 4️⃣ Inject footer
 # -------------------------
