@@ -25,14 +25,21 @@ CUSTOM_BADGES_FILE="${CUSTOM_BADGES_FILE:-}"
 # -------------------------
 # Ensure header/footer markers exist
 # -------------------------
+
+# Header: insert at top if missing
 if ! grep -q '<!-- BEGIN AUTO-GENERATED HEADER -->' "$README_FILE"; then
-    # Insert at the top
     tmp=$(mktemp)
-    echo -e "<!-- BEGIN AUTO-GENERATED HEADER -->\n<!-- END AUTO-GENERATED HEADER -->\n" > "$tmp"
-    cat "$README_FILE" >> "$tmp"
+    # Add a newline if file is non-empty to separate header
+    if [ -s "$README_FILE" ]; then
+        echo -e "<!-- BEGIN AUTO-GENERATED HEADER -->\n<!-- END AUTO-GENERATED HEADER -->\n" > "$tmp"
+        cat "$README_FILE" >> "$tmp"
+    else
+        echo -e "<!-- BEGIN AUTO-GENERATED HEADER -->\n<!-- END AUTO-GENERATED HEADER -->" > "$tmp"
+    fi
     mv "$tmp" "$README_FILE"
 fi
 
+# Footer: append at end if missing
 if ! grep -q '<!-- BEGIN AUTO-GENERATED FOOTER -->' "$README_FILE"; then
     echo -e "\n<!-- BEGIN AUTO-GENERATED FOOTER -->\n<!-- END AUTO-GENERATED FOOTER -->" >> "$README_FILE"
 fi
