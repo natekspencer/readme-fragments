@@ -1,4 +1,15 @@
 #!/usr/bin/env bash
+# -------------------------
+# sed portability (macOS vs GNU)
+# -------------------------
+if sed --version >/dev/null 2>&1; then
+  # GNU sed
+  SED_INPLACE=(sed -i)
+else
+  # BSD sed (macOS)
+  SED_INPLACE=(sed -i '')
+fi
+
 set -e
 
 # -------------------------
@@ -64,7 +75,7 @@ HEADER_URL="https://raw.githubusercontent.com/natekspencer/readme-fragments/main
 curl -sSL "$HEADER_URL" -o "$HEADER_TMP"
 
 # Replace placeholders
-sed -i \
+"${SED_INPLACE[@]}" \
   -e "s/{{OWNER}}/$OWNER/g" \
   -e "s/{{REPO}}/$REPO/g" \
   -e "s/{{HACS_TYPE}}/$HACS_TYPE/g" \
@@ -107,7 +118,7 @@ for f in "${ITEMS[@]}"; do
 done
 
 # Replace placeholders in footers
-sed -i \
+"${SED_INPLACE[@]}" \
   -e "s/{{OWNER}}/$OWNER/g" \
   -e "s/{{REPO}}/$REPO/g" \
   "$FOOTER_TMP"
