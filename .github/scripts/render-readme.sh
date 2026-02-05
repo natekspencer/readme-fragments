@@ -1,62 +1,127 @@
 #!/usr/bin/env bash
 set -e
 
-README_FILE=README.md
-
+# -------------------------
+# Config / environment
+# -------------------------
+README_FILE="${README_FILE:-README.md}"
 OWNER="${OWNER_OVERRIDE:-natekspencer}"
-REPO="${REPO_OVERRIDE:-${GITHUB_REPOSITORY##*/}}"
-HEADER="${HEADER:-homeassistant}"
+
+# Auto-detect REPO:
+# - Use override if set
+# - Otherwise use GitHub Actions env
+# - Otherwise use current folder name (local)
+if [ -n "$REPO_OVERRIDE" ]; then
+    REPO="$REPO_OVERRIDE"
+elif [ -n "$GITHUB_REPOSITORY" ]; then
+    REPO="${GITHUB_REPOSITORY##*/}"
+else
+    REPO="$(basename $(pwd))"
+fi
+
+HEADER="${HEADER:-ha}"
 FOOTERS="${FOOTERS:-support,star-history}"
 CHECK="${CHECK:-false}"
 CUSTOM_BADGES="${CUSTOM_BADGES:-}"
+CUSTOM_BADGES_FILE="${CUSTOM_BADGES_FILE:-}"
 
-# Fetch header fragment
-curl -sSL "https://raw.githubusercontent.com/natekspencer/readme-fragments/main/headers/$HEADER/v1.md" -o header.tmp.md
+# -------------------------
+# Temporary files
+# -------------------------
+HEADER_TMP=$(mktemp)
+FOOTER_TMP=$(mktemp)
+README_TMP=$(mktemp)
 
-# Replace owner/repo placeholders
+# -------------------------
+# 1️⃣ Fetch header fragment
+# -------------------------
+HEADER_URL="https://raw.githubusercontent.com/natekspencer/readme-fragments/main/headers/$HEADER/v1.md"
+curl -sSL "$HEADER_URL" -o "$HEADER_TMP"
+
+# Replace placeholders
 sed -i \
   -e "s/{{OWNER}}/$OWNER/g" \
   -e "s/{{REPO}}/$REPO/g" \
-  header.tmp.md
+  "$HEADER_TMP"
 
-# Inject custom badges
+# Add custom badges inline
 if [ -n "$CUSTOM_BADGES" ]; then
-  echo >> header.tmp.md
-  echo "$CUSTOM_BADGES" >> header.tmp.md
+  echo >> "$HEADER_TMP"
+  echo "$CUSTOM_BADGES" >> "$HEADER_TMP"
 fi
 
-# Inject header
-awk '
-/<!-- BEGIN AUTO-GENERATED HEADER -->/ { print; system("cat header.tmp.md"); skip=1; next }
-/<!-- END AUTO-GENERATED HEADER -->/ { skip=0; next }
-!skip { print }
-' "$README_FILE" > README.tmp.md
+# Add custom badges from file
+if [ -n "$CUSTOM_BADGES_FILE" ] && [ -f "$CUSTOM_BADGES_FILE" ]; then
+  echo >> "$HEADER_TMP"
+  cat "$CUSTOM_BADGES_FILE" >> "$HEADER_TMP"
+fi
 
-# Build footers
-: > footer.tmp.md
+# -------------------------
+# 2️⃣ Inject header
+# -------------------------
+awk -v HEADER_FILE="$HEADER_TMP" '
+/<!-- BEGIN AUTO-GENERATED HEADER -->/ {
+    print
+    while ((getline line < HEADER_FILE) > 0) print line
+    close(HEADER_FILE)
+    skip=1
+    next
+}
+/<!-- END AUTO-GENERATED HEADER -->/ {
+    print
+    skip=0
+    next
+}
+!skip { print }
+' "$README_FILE" > "$README_TMP"
+
+# -------------------------
+# 3️⃣ Build footers
+# -------------------------
+: > "$FOOTER_TMP"
 IFS=',' read -ra ITEMS <<< "$FOOTERS"
 for f in "${ITEMS[@]}"; do
-  if [ -f "footers/$f.md" ]; then
-    cat "footers/$f.md" >> footer.tmp.md
-    echo >> footer.tmp.md
-  fi
+  FOOTER_URL="https://raw.githubusercontent.com/natekspencer/readme-fragments/main/footers/$f.md"
+  curl -sSL "$FOOTER_URL" >> "$FOOTER_TMP"
+  echo >> "$FOOTER_TMP"
 done
 
-# Inject footer
-awk '
-/<!-- BEGIN AUTO-GENERATED FOOTER -->/ { print; system("cat footer.tmp.md"); skip=1; next }
-/<!-- END AUTO-GENERATED FOOTER -->/ { skip=0; next }
+# -------------------------
+# 4️⃣ Inject footer
+# -------------------------
+awk -v FOOTER_FILE="$FOOTER_TMP" '
+/<!-- BEGIN AUTO-GENERATED FOOTER -->/ {
+    print
+    while ((getline line < FOOTER_FILE) > 0) print line
+    close(FOOTER_FILE)
+    skip=1
+    next
+}
+/<!-- END AUTO-GENERATED FOOTER -->/ {
+    print
+    skip=0
+    next
+}
 !skip { print }
-' README.tmp.md > "$README_FILE"
+' "$README_TMP" > "$README_FILE"
 
-# CI check
+# -------------------------
+# 5️⃣ Optional CI check
+# -------------------------
 if [ "$CHECK" = "true" ]; then
   if git diff --quiet "$README_FILE"; then
-    echo "README is up to date"
+    echo "✅ README is up to date"
+    rm -f "$HEADER_TMP" "$FOOTER_TMP" "$README_TMP"
     exit 0
   else
     echo "::error::README managed sections are out of date"
     git diff
+    rm -f "$HEADER_TMP" "$FOOTER_TMP" "$README_TMP"
     exit 1
   fi
 fi
+
+# -------------------------
+# 6️⃣ Cleanup temp files
+# -------------------------
+rm -f "$HEADER_TMP" "$FOOTER_TMP" "$README_TMP"
