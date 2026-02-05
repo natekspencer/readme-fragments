@@ -16,7 +16,7 @@ else
     REPO="$(basename $(pwd))"
 fi
 
-HEADER="${HEADER:-homeassistant}"
+HEADER="${HEADER:-ha}"
 FOOTERS="${FOOTERS:-support,star-history}"
 CHECK="${CHECK:-false}"
 CUSTOM_BADGES="${CUSTOM_BADGES:-}"
