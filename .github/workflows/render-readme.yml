@@ -1,0 +1,23 @@
+name: Render README
+
+on:
+  workflow_call:
+    inputs:
+      header:
+        required: true
+        type: string
+
+      custom_badges:
+        required: false
+        type: string
+        default: ""
+
+      footers:
+        required: false
+        type: string
+        default: ""
+
+      check:
+        required: false
+        type: boolean
+        default: false
