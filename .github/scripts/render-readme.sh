@@ -31,6 +31,7 @@ HEADER="${HEADER:-homeassistant}"
 FOOTERS="${FOOTERS:-support,star-history}"
 CHECK="${CHECK:-false}"
 CUSTOM_BADGES="${CUSTOM_BADGES:-}"
+PROJECT_TYPE="${PROJECT_TYPE:-}"
 
 # -------------------------
 # Ensure header/footer markers exist
@@ -66,6 +67,17 @@ README_TMP=$(mktemp)
 HACS_TYPE="custom"
 if curl -sSL https://raw.githubusercontent.com/hacs/default/master/integration | grep -q "\"$OWNER/$REPO\""; then
     HACS_TYPE="default"
+fi
+
+# -------------------------
+# Detect project type (homeassistant vs python)
+# -------------------------
+if [ -z "$PROJECT_TYPE" ]; then
+  if [ -f "hacs.json" ] || [ -d "custom_components" ]; then
+    PROJECT_TYPE="homeassistant"
+  else
+    PROJECT_TYPE="python"
+  fi
 fi
 
 # -------------------------
@@ -109,11 +121,44 @@ awk -v HEADER_FILE="$HEADER_TMP" '
 # -------------------------
 # 4️⃣ Build footers
 # -------------------------
+expand_includes() {
+  local file="$1"
+
+  while grep -q '{{INCLUDE:' "$file"; do
+    include=$(grep '{{INCLUDE:' "$file" | sed -E 's/.*{{INCLUDE:([^}]+)}}.*/\1/')
+    include_file="https://raw.githubusercontent.com/natekspencer/readme-fragments/main/footers/${include}.md"
+
+    tmp_include=$(mktemp)
+    curl -sSL "$include_file" -o "$tmp_include"
+
+    awk -v inc="$tmp_include" -v key="{{INCLUDE:$include}}" '
+      { 
+        if ($0 ~ key) {
+          while ((getline l < inc) > 0) print l
+          close(inc)
+        } else {
+          print
+        }
+      }
+    ' "$file" > "$file.tmp"
+
+    mv "$file.tmp" "$file"
+    rm -f "$tmp_include"
+  done
+}
+
 : > "$FOOTER_TMP"
 IFS=',' read -ra ITEMS <<< "$FOOTERS"
 for f in "${ITEMS[@]}"; do
-  FOOTER_URL="https://raw.githubusercontent.com/natekspencer/readme-fragments/main/footers/$f.md"
+  fragment="$f"
+
+  if [ "$f" = "support" ]; then
+    fragment="support-$PROJECT_TYPE"
+  fi
+
+  FOOTER_URL="https://raw.githubusercontent.com/natekspencer/readme-fragments/main/footers/$fragment.md"
   curl -sSL "$FOOTER_URL" >> "$FOOTER_TMP"
+  expand_includes "$FOOTER_TMP"
   echo >> "$FOOTER_TMP"
 done
 

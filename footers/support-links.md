@@ -1,0 +1,3 @@
+- 💜 [Sponsor me on GitHub](https://github.com/sponsors/{{OWNER}})
+- ☕ [Buy me a coffee / beer](https://ko-fi.com/{{OWNER}})
+- ⭐ [Star this project](https://github.com/{{OWNER}}/{{REPO}})
