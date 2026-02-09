@@ -1,5 +1,5 @@
-## ❤️ Support
+## ❤️ Support Me
 
-If you like this integration or found it useful, consider supporting its development:
+I maintain this Home Assistant integration in my spare time. If you find it useful, consider supporting development:
 
 {{INCLUDE:support-links}}

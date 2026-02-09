@@ -2,3 +2,4 @@
 - ☕ [Buy me a coffee / beer](https://ko-fi.com/{{OWNER}})
 - 💸 [PayPal (direct support)](https://www.paypal.com/paypalme/{{OWNER}})
 - ⭐ [Star this project](https://github.com/{{OWNER}}/{{REPO}})
+- 📦 If you’d like to support in other ways, such as donating hardware for testing, feel free to [reach out to me](https://github.com/{{OWNER}})
