@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+echo "Rendering README..."
+
 # -------------------------
 # sed portability (macOS vs GNU)
 # -------------------------
@@ -65,9 +67,12 @@ README_TMP=$(mktemp)
 # 1️⃣ Detect HACS default vs custom
 # -------------------------
 HACS_TYPE="custom"
-if curl -sSL https://raw.githubusercontent.com/hacs/default/master/integration | grep -q "\"$OWNER/$REPO\""; then
+tmp_hacs_list=$(mktemp)
+curl -sSL https://raw.githubusercontent.com/hacs/default/master/integration -o "$tmp_hacs_list"
+if grep -q "\"$OWNER/$REPO\"" "$tmp_hacs_list"; then
     HACS_TYPE="default"
 fi
+rm -f "$tmp_hacs_list"
 
 # -------------------------
 # Detect project type (homeassistant vs python)
@@ -119,20 +124,20 @@ awk -v HEADER_FILE="$HEADER_TMP" '
 ' "$README_FILE" > "$README_TMP"
 
 # -------------------------
-# 4️⃣ Build footers
+# 4️⃣ Build footers with include support
 # -------------------------
 expand_includes() {
   local file="$1"
 
   while grep -q '{{INCLUDE:' "$file"; do
-    include=$(grep '{{INCLUDE:' "$file" | sed -E 's/.*{{INCLUDE:([^}]+)}}.*/\1/')
+    include=$(grep '{{INCLUDE:' "$file" | sed -E 's/.*\{\{INCLUDE:([^}]+)\}\}.*/\1/')
     include_file="https://raw.githubusercontent.com/natekspencer/readme-fragments/main/footers/${include}.md"
 
     tmp_include=$(mktemp)
     curl -sSL "$include_file" -o "$tmp_include"
 
     awk -v inc="$tmp_include" -v key="{{INCLUDE:$include}}" '
-      { 
+      {
         if ($0 ~ key) {
           while ((getline l < inc) > 0) print l
           close(inc)
@@ -152,6 +157,7 @@ IFS=',' read -ra ITEMS <<< "$FOOTERS"
 for f in "${ITEMS[@]}"; do
   fragment="$f"
 
+  # Pick the correct support file based on project type
   if [ "$f" = "support" ]; then
     fragment="support-$PROJECT_TYPE"
   fi
@@ -207,3 +213,5 @@ fi
 # 7️⃣ Cleanup temp files
 # -------------------------
 rm -f "$HEADER_TMP" "$FOOTER_TMP" "$README_TMP"
+
+echo "✅ README updated!"
