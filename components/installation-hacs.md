@@ -1,14 +1,14 @@
-# ⬇️ Installation
+## ⬇️ Installation
 
-## HACS (Recommended)
+### HACS (Recommended)
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner={{OWNER}}&repository={{REPO}}&category=integration)
 
 To download:
 
-{{INCLUDE:installation-hacs-{{HACS_TYPE}}}}
+{{INCLUDE:components/installation-hacs-{{HACS_TYPE}}}}
 
-## Manual
+### Manual
 
 If you prefer manual installation:
 
@@ -21,7 +21,7 @@ If you prefer manual installation:
 
 > ⚠️ Manual installation will not provide automatic update notifications. HACS installation is recommended unless you have a specific need.
 
-# ➕ Setup
+## ➕ Setup
 
 Once installed, you can setup the integration by clicking on the following badge:
 
