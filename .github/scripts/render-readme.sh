@@ -114,6 +114,7 @@ expand_file() {
       -e "s/{{REPO}}/$REPO/g" \
       -e "s/{{HACS_TYPE}}/$HACS_TYPE/g" \
       -e "s/{{DOMAIN}}/$DOMAIN/g" \
+      -e "s/{{INTEGRATION_NAME}}/$INTEGRATION_NAME/g" \
       "$file"
 
     # 2️⃣ INCLUDEs
