@@ -4,8 +4,6 @@
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner={{OWNER}}&repository={{REPO}}&category=integration)
 
-To download:
-
 {{INCLUDE:components/installation-hacs-{{HACS_TYPE}}}}
 
 ### Manual
@@ -23,7 +21,7 @@ If you prefer manual installation:
 
 ## ➕ Setup
 
-Once installed, you can setup the integration by clicking on the following badge:
+Once installed, you can set up the integration by clicking on the following badge:
 
 [![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain={{DOMAIN}})
 
