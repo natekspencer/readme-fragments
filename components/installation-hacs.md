@@ -11,10 +11,7 @@
 If you prefer manual installation:
 
 1. Download or clone this repository
-2. Copy the `custom_components/{{DOMAIN}}` folder to your Home Assistant `custom_components` directory. If this is your first custom component, you may need to create the directory.  
-   Example paths:
-   - Hassio: `/config/custom_components`
-   - Hassbian: `/home/homeassistant/.homeassistant/custom_components`
+2. Copy the `custom_components/{{DOMAIN}}` folder to your Home Assistant `custom_components` directory
 3. Restart Home Assistant
 
 > ⚠️ Manual installation will not provide automatic update notifications. HACS installation is recommended unless you have a specific need.
