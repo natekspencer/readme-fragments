@@ -3,6 +3,6 @@
 3. Enter `{{OWNER}}/{{REPO}}` in the _Repository_ field and select `Integration` in the _Type_ dropdown
 4. Click **ADD**
 5. Close the _Custom repositories_ window
-6. Search for `{{REPO}}` and click on the appropriate item
+6. Search for `{{INTEGRATION_NAME}}` and click on the appropriate repository
 7. Click **DOWNLOAD**
 8. Restart Home Assistant

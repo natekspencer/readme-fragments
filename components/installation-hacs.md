@@ -31,5 +31,5 @@ Alternatively:
 
 1. Go to [Settings > Devices & services](https://my.home-assistant.io/redirect/integrations/)
 2. In the bottom-right corner, select **Add integration**
-3. Type `{{DOMAIN}}` and select the **{{DOMAIN}}** integration
+3. Type `{{INTEGRATION_NAME}}` and select the **{{INTEGRATION_NAME}}** integration
 4. Follow the instructions to add the integration to your Home Assistant

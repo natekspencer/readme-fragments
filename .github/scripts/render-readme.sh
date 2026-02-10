@@ -1,84 +1,63 @@
 #!/usr/bin/env bash
+set -e
+
 echo "Rendering README..."
 
 # -------------------------
-# sed portability (macOS vs GNU)
+# sed portability
 # -------------------------
 if sed --version >/dev/null 2>&1; then
-  # GNU sed
   SED_INPLACE=(sed -i)
 else
-  # BSD sed (macOS)
   SED_INPLACE=(sed -i '')
 fi
 
-set -e
-
 # -------------------------
-# Config / environment
+# Config
 # -------------------------
 README_FILE="${README_FILE:-README.md}"
 OWNER="${OWNER_OVERRIDE:-natekspencer}"
 
-# Auto-detect REPO:
 if [ -n "$REPO_OVERRIDE" ]; then
-    REPO="$REPO_OVERRIDE"
+  REPO="$REPO_OVERRIDE"
 elif [ -n "$GITHUB_REPOSITORY" ]; then
-    REPO="${GITHUB_REPOSITORY##*/}"
+  REPO="${GITHUB_REPOSITORY##*/}"
 else
-    REPO="$(basename $(pwd))"
+  REPO="$(basename "$(pwd)")"
 fi
 
 HEADER="${HEADER:-homeassistant}"
 FOOTERS="${FOOTERS:-support,star-history}"
-CHECK="${CHECK:-false}"
 CUSTOM_BADGES="${CUSTOM_BADGES:-}"
+CHECK="${CHECK:-false}"
 PROJECT_TYPE="${PROJECT_TYPE:-}"
 
-# -------------------------
-# Ensure header/footer markers exist
-# -------------------------
-
-# Header: insert at top if missing
-if ! grep -q '<!-- BEGIN AUTO-GENERATED HEADER -->' "$README_FILE"; then
-    tmp=$(mktemp)
-    if [ -s "$README_FILE" ]; then
-        echo -e "<!-- BEGIN AUTO-GENERATED HEADER -->\n<!-- END AUTO-GENERATED HEADER -->\n" > "$tmp"
-        cat "$README_FILE" >> "$tmp"
-    else
-        echo -e "<!-- BEGIN AUTO-GENERATED HEADER -->\n<!-- END AUTO-GENERATED HEADER -->" > "$tmp"
-    fi
-    mv "$tmp" "$README_FILE"
-fi
-
-# Footer: append at end if missing
-if ! grep -q '<!-- BEGIN AUTO-GENERATED FOOTER -->' "$README_FILE"; then
-    echo -e "\n<!-- BEGIN AUTO-GENERATED FOOTER -->\n<!-- END AUTO-GENERATED FOOTER -->" >> "$README_FILE"
-fi
+FRAGMENTS_BASE="https://raw.githubusercontent.com/natekspencer/readme-fragments/main"
 
 # -------------------------
-# Temporary files
+# Temp files
 # -------------------------
+README_TMP=$(mktemp)
 HEADER_TMP=$(mktemp)
 FOOTER_TMP=$(mktemp)
-README_TMP=$(mktemp)
+INSTALLATION_TMP=$(mktemp)
 
 # -------------------------
-# 1️⃣ Detect HACS default vs custom
+# Detect HACS type
 # -------------------------
 HACS_TYPE="custom"
-tmp_hacs_list=$(mktemp)
-curl -sSL https://raw.githubusercontent.com/hacs/default/master/integration -o "$tmp_hacs_list"
-if grep -q "\"$OWNER/$REPO\"" "$tmp_hacs_list"; then
-    HACS_TYPE="default"
+tmp_hacs=$(mktemp)
+curl -sSL https://raw.githubusercontent.com/hacs/default/master/integration -o "$tmp_hacs"
+if grep -q "\"$OWNER/$REPO\"" "$tmp_hacs"; then
+  HACS_TYPE="default"
 fi
-rm -f "$tmp_hacs_list"
+rm -f "$tmp_hacs"
 
 # -------------------------
-# Detect project type (homeassistant vs python)
+# Detect project type
 # -------------------------
 if [ -z "$PROJECT_TYPE" ]; then
-  if [ -f "hacs.json" ] || [ -d "custom_components" ]; then
+  if [ -d "custom_components" ] || [ -f "hacs.json" ]; then
     PROJECT_TYPE="homeassistant"
   else
     PROJECT_TYPE="python"
@@ -86,132 +65,165 @@ if [ -z "$PROJECT_TYPE" ]; then
 fi
 
 # -------------------------
-# 2️⃣ Fetch header fragment
+# Extract integration domain and name
 # -------------------------
-HEADER_URL="https://raw.githubusercontent.com/natekspencer/readme-fragments/main/headers/$HEADER/v1.md"
-curl -sSL "$HEADER_URL" -o "$HEADER_TMP"
+DOMAIN=""
+INTEGRATION_NAME=""
+if [ -d "custom_components" ]; then
+  read -r DOMAIN INTEGRATION_NAME < <(
+    jq -r '[.domain, .name] | @tsv' custom_components/*/manifest.json 2>/dev/null | head -n1
+  )
+fi
 
-# Replace placeholders
-"${SED_INPLACE[@]}" \
-  -e "s/{{OWNER}}/$OWNER/g" \
-  -e "s/{{REPO}}/$REPO/g" \
-  -e "s/{{HACS_TYPE}}/$HACS_TYPE/g" \
-  "$HEADER_TMP"
+# -------------------------
+# Ensure managed blocks exist
+# -------------------------
+ensure_block() {
+  local name="$1"
+  local begin="<!-- BEGIN AUTO-GENERATED $name -->"
+  local end="<!-- END AUTO-GENERATED $name -->"
 
-# Add custom badges inline
+  if ! grep -q "$begin" "$README_FILE"; then
+    {
+      cat "$README_FILE"
+      echo
+      echo "$begin"
+      echo "$end"
+    } > "$README_TMP"
+    mv "$README_TMP" "$README_FILE"
+  fi
+}
+
+ensure_block "HEADER"
+ensure_block "INSTALLATION"
+ensure_block "FOOTER"
+
+# -------------------------
+# Recursive expander
+# -------------------------
+expand_file() {
+  local file="$1"
+  local changed=true
+
+  while $changed; do
+    changed=false
+
+    # 1️⃣ Variables
+    "${SED_INPLACE[@]}" \
+      -e "s/{{OWNER}}/$OWNER/g" \
+      -e "s/{{REPO}}/$REPO/g" \
+      -e "s/{{HACS_TYPE}}/$HACS_TYPE/g" \
+      -e "s/{{DOMAIN}}/$DOMAIN/g" \
+      "$file"
+
+    # 2️⃣ INCLUDEs
+    if grep -q '{{INCLUDE:' "$file"; then
+      include=$(grep '{{INCLUDE:' "$file" | sed -E 's/.*\{\{INCLUDE:([^}]+)\}\}.*/\1/' | head -n1)
+
+      include_url="$FRAGMENTS_BASE/$include.md"
+      tmp_inc=$(mktemp)
+      curl -sSL "$include_url" -o "$tmp_inc"
+
+      expand_file "$tmp_inc"
+
+      awk -v inc="$tmp_inc" -v key="{{INCLUDE:$include}}" '
+        {
+          if ($0 ~ key) {
+            while ((getline l < inc) > 0) print l
+            close(inc)
+          } else {
+            print
+          }
+        }
+      ' "$file" > "$file.tmp"
+
+      mv "$file.tmp" "$file"
+      rm -f "$tmp_inc"
+      changed=true
+    fi
+  done
+}
+
+# -------------------------
+# Block injector
+# -------------------------
+inject_block() {
+  local name="$1"
+  local content="$2"
+
+  local begin="<!-- BEGIN AUTO-GENERATED $name -->"
+  local end="<!-- END AUTO-GENERATED $name -->"
+
+  awk -v C="$content" -v B="$begin" -v E="$end" '
+  $0 == B {
+    print
+    while ((getline l < C) > 0) print l
+    close(C)
+    skip=1
+    next
+  }
+  $0 == E {
+    print
+    skip=0
+    next
+  }
+  !skip { print }
+  ' "$README_FILE" > "$README_TMP"
+
+  mv "$README_TMP" "$README_FILE"
+}
+
+# -------------------------
+# HEADER
+# -------------------------
+curl -sSL "$FRAGMENTS_BASE/headers/$HEADER/v1.md" -o "$HEADER_TMP"
+expand_file "$HEADER_TMP"
+
 if [ -n "$CUSTOM_BADGES" ]; then
   echo >> "$HEADER_TMP"
   echo "$CUSTOM_BADGES" >> "$HEADER_TMP"
 fi
 
-# -------------------------
-# 3️⃣ Inject header
-# -------------------------
-awk -v HEADER_FILE="$HEADER_TMP" '
-/<!-- BEGIN AUTO-GENERATED HEADER -->/ {
-    print
-    while ((getline line < HEADER_FILE) > 0) print line
-    close(HEADER_FILE)
-    skip=1
-    next
-}
-/<!-- END AUTO-GENERATED HEADER -->/ {
-    print
-    skip=0
-    next
-}
-!skip { print }
-' "$README_FILE" > "$README_TMP"
+inject_block "HEADER" "$HEADER_TMP"
 
 # -------------------------
-# 4️⃣ Build footers with include support
+# INSTALLATION
 # -------------------------
-expand_includes() {
-  local file="$1"
+curl -sSL "$FRAGMENTS_BASE/components/installation-hacs.md" -o "$INSTALLATION_TMP"
+expand_file "$INSTALLATION_TMP"
+inject_block "INSTALLATION" "$INSTALLATION_TMP"
 
-  while grep -q '{{INCLUDE:' "$file"; do
-    include=$(grep '{{INCLUDE:' "$file" | sed -E 's/.*\{\{INCLUDE:([^}]+)\}\}.*/\1/')
-    include_file="https://raw.githubusercontent.com/natekspencer/readme-fragments/main/footers/${include}.md"
-
-    tmp_include=$(mktemp)
-    curl -sSL "$include_file" -o "$tmp_include"
-
-    awk -v inc="$tmp_include" -v key="{{INCLUDE:$include}}" '
-      {
-        if ($0 ~ key) {
-          while ((getline l < inc) > 0) print l
-          close(inc)
-        } else {
-          print
-        }
-      }
-    ' "$file" > "$file.tmp"
-
-    mv "$file.tmp" "$file"
-    rm -f "$tmp_include"
-  done
-}
-
+# -------------------------
+# FOOTER
+# -------------------------
 : > "$FOOTER_TMP"
 IFS=',' read -ra ITEMS <<< "$FOOTERS"
-for f in "${ITEMS[@]}"; do
-  fragment="$f"
 
-  # Pick the correct support file based on project type
+for f in "${ITEMS[@]}"; do
+  frag="$f"
   if [ "$f" = "support" ]; then
-    fragment="support-$PROJECT_TYPE"
+    frag="support-$PROJECT_TYPE"
   fi
 
-  FOOTER_URL="https://raw.githubusercontent.com/natekspencer/readme-fragments/main/footers/$fragment.md"
-  curl -sSL "$FOOTER_URL" >> "$FOOTER_TMP"
-  expand_includes "$FOOTER_TMP"
+  curl -sSL "$FRAGMENTS_BASE/footers/$frag.md" >> "$FOOTER_TMP"
   echo >> "$FOOTER_TMP"
 done
 
-# Replace placeholders in footers
-"${SED_INPLACE[@]}" \
-  -e "s/{{OWNER}}/$OWNER/g" \
-  -e "s/{{REPO}}/$REPO/g" \
-  "$FOOTER_TMP"
+expand_file "$FOOTER_TMP"
+inject_block "FOOTER" "$FOOTER_TMP"
 
 # -------------------------
-# 5️⃣ Inject footer
-# -------------------------
-awk -v FOOTER_FILE="$FOOTER_TMP" '
-/<!-- BEGIN AUTO-GENERATED FOOTER -->/ {
-    print
-    while ((getline line < FOOTER_FILE) > 0) print line
-    close(FOOTER_FILE)
-    skip=1
-    next
-}
-/<!-- END AUTO-GENERATED FOOTER -->/ {
-    print
-    skip=0
-    next
-}
-!skip { print }
-' "$README_TMP" > "$README_FILE"
-
-# -------------------------
-# 6️⃣ Optional CI check
+# CI check
 # -------------------------
 if [ "$CHECK" = "true" ]; then
   if git diff --quiet "$README_FILE"; then
     echo "✅ README is up to date"
-    rm -f "$HEADER_TMP" "$FOOTER_TMP" "$README_TMP"
     exit 0
   else
     echo "::error::README managed sections are out of date"
     git diff
-    rm -f "$HEADER_TMP" "$FOOTER_TMP" "$README_TMP"
     exit 1
   fi
 fi
-
-# -------------------------
-# 7️⃣ Cleanup temp files
-# -------------------------
-rm -f "$HEADER_TMP" "$FOOTER_TMP" "$README_TMP"
 
 echo "✅ README updated!"
