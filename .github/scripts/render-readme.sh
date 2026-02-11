@@ -60,7 +60,7 @@ if [ -z "$PROJECT_TYPE" ]; then
   if [ -d "custom_components" ] || [ -f "hacs.json" ]; then
     PROJECT_TYPE="homeassistant"
   else
-    PROJECT_TYPE="pypi"
+    PROJECT_TYPE="python"
   fi
 fi
 

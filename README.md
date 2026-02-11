@@ -1,6 +1,6 @@
 # README Fragments
 
-This repo provides reusable headers, footers, and badges for all my HA and PyPI repos.
+This repo provides reusable headers, footers, and badges for all my Home Assistant and python repos.
 
 ## Usage
 
@@ -11,7 +11,7 @@ This repo provides reusable headers, footers, and badges for all my HA and PyPI 
 ## Headers
 
 - `homeassistant`
-- `pypi`
+- `python`
 
 ## Footers
 
